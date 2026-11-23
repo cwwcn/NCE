@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#121212">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="新概念">
+    <link rel="manifest" href="static/manifest.json">
+    <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
     <meta name="description" content="新概念英语课文点读与听力训练，支持逐句点读、听写模式、播放历史与自定义课程。">
     <meta name="keywords" content="新概念英语课文点读,英语听力训练,听写模式,逐句播放">
     <link rel="canonical" href="https://nce.hoothin.com/lesson.html">
@@ -21,9 +27,9 @@
     <meta name="twitter:image" content="https://nce.hoothin.com/static/ogimage.jpg">
     <title>新概念英语 - 课文点读</title>
     <link rel="stylesheet" href="static/base.css">
-    <link rel="stylesheet" href="static/lesson.css">
+    <link rel="stylesheet" href="static/lesson.css?v=8">
     <script src="static/utils.js"></script>
-    <script src="static/lesson.js"></script>
+    <script src="static/lesson.js?v=4"></script>
     <style>
         /* Rules for hiding/showing Chinese/English text */
         #content.en-mode .cn { display: none; }
@@ -60,9 +66,6 @@
             border-color: var(--primary-color);
         }
     </style>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3321669220169470" crossorigin="anonymous"></script>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5282BCFM9W"></script>
-    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5282BCFM9W');</script>
     <script type="application/ld+json">
     {"@context":"https://schema.org","@type":"WebPage","name":"新概念英语课文点读","url":"https://nce.hoothin.com/lesson.html","description":"新概念英语课文点读与听力训练，支持逐句点读、听写模式、播放历史与自定义课程。","inLanguage":"zh-CN","isPartOf":{"@type":"WebSite","name":"新概念英语在线点读","url":"https://nce.hoothin.com/"},"image":"https://nce.hoothin.com/static/ogimage.jpg","publisher":{"@type":"Person","name":"hoothin"}}
     </script>
@@ -112,12 +115,6 @@
         </div>
     </a>
 </div>
-<div class="alipay-red-packet-slot" aria-label="支付宝红包入口">
-    <button type="button" class="alipay-red-packet-btn" data-red-packet-trigger aria-haspopup="dialog" aria-controls="red-packet-modal" aria-expanded="false">
-        <span class="alipay-red-packet-btn__icon" aria-hidden="true"></span>
-        <span class="alipay-red-packet-btn__label">支付宝领红包，买东西省亿点！</span>
-    </button>
-</div>
 <div class="book-container">
     <a id="book" href="book.html">
         <header class="book-header">
@@ -152,10 +149,13 @@
 </div>
 
 <div class="player-container">
-    <div class="custom-player-wrapper">
-        <audio id="player"></audio>
+    <button id="player-panel-toggle" type="button" aria-controls="player-panel" aria-expanded="true" aria-label="收起播放器" title="收起播放器">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <audio id="player"></audio>
+    <div id="player-panel" class="custom-player-wrapper">
         <div class="custom-player">
-            <button id="play-pause-btn" class="player-btn play"></button>
+            <button id="play-pause-btn" class="player-btn play" aria-label="播放"></button>
             <div class="progress-container">
                 <div id="progress-bar">
                     <div id="progress"></div>
@@ -168,13 +168,18 @@
             </div>
         </div>
         <div id="playback-modes">
-            <button id="mode-ab-loop">A-B循环</button>
-            <button id="set-a" style="display: none;">设置A点</button>
-            <button id="set-b" style="display: none;">设置B点</button>
-            <button id="mode-continuous">连续播放</button>
-            <button id="mode-single-loop">单句循环</button>
-            <button id="mode-single-play">单次播放</button>
-            <div id="dictation-container" class="dictation-container">
+            <div class="playback-mode-options" role="group" aria-label="播放模式">
+                <button id="mode-ab-loop" type="button" aria-pressed="false" aria-controls="ab-loop-controls">A-B循环</button>
+                <button id="mode-continuous" type="button" aria-pressed="false">连续播放</button>
+                <button id="mode-lesson-loop" type="button" aria-pressed="false" title="播完整课后停顿 1.2 秒，再从头播放">整课循环</button>
+                <button id="mode-single-loop" type="button" aria-pressed="false">单句循环</button>
+                <button id="mode-single-play" type="button" aria-pressed="false">单次播放</button>
+            </div>
+            <div id="ab-loop-controls" class="playback-mode-detail" role="group" aria-label="A-B循环设点" hidden>
+                <button id="set-a" type="button">设置A点</button>
+                <button id="set-b" type="button">设置B点</button>
+            </div>
+            <div id="dictation-container" class="dictation-container playback-mode-detail" hidden>
                 <input type="checkbox" id="dictation-mode">
                 <label for="dictation-mode"></label>
                 <span>听写模式</span>
@@ -195,11 +200,6 @@
         </div>
     </div>
 </div>
-
-<footer>
-    <hr>
-    <p>© 2025 <a target="_blank" href="https://www.hoothin.com">hoothin</a>.</p>
-</footer>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>New Concept English</title>
+  <path fill="#FFD323" d="M0 0h512v512H0z"/>
+  <path fill="#168345" d="M0 499 512 272v240H0z"/>
+  <g fill="#112C44">
+    <path d="M103 207V102h24l43 62v-62h25v105h-24l-43-62v62z"/>
+    <path d="M307 117l-16 18a33 33 0 0 0-23-10c-17 0-29 13-29 30s12 30 29 30c9 0 17-4 24-11l16 17c-11 12-25 18-41 18-31 0-55-23-55-54s24-55 55-55c16 0 30 6 40 17z"/>
+    <path d="M324 102h85v23h-59v18h50v22h-50v19h59v23h-85z"/>
+  </g>
+  <path fill="#FFF2BE" stroke="#112C44" stroke-width="16" stroke-linejoin="round" d="M256 281c-26-24-65-34-118-26v128c47-8 85 1 118 24 33-23 71-32 118-24V255c-53-8-92 2-118 26z"/>
+  <path fill="none" stroke="#112C44" stroke-width="13" stroke-linecap="round" d="M256 282v122m-87-105c19 0 35 3 53 11m-53 22c19 0 35 3 53 11"/>
+  <path fill="#BD3D24" stroke="#BD3D24" stroke-width="8" stroke-linejoin="round" d="M294 300v50l45-25z"/>
+</svg>

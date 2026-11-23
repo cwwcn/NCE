@@ -102,6 +102,8 @@
         const bookImgEl = document.getElementById('book-img');
         const lessonTitleEl = document.getElementById('lesson-title');
         const modesContainer = document.getElementById('playback-modes');
+        const modeButtons = modesContainer.querySelectorAll('.playback-mode-options button');
+        const abLoopControls = document.getElementById('ab-loop-controls');
         const setAButton = document.getElementById('set-a');
         const setBButton = document.getElementById('set-b');
         const speedContainer = document.getElementById('playback-speed');
@@ -120,6 +122,9 @@
 
         // Custom player controls
         const playPauseBtn = document.getElementById('play-pause-btn');
+        const playerContainer = playPauseBtn.closest('.player-container');
+        const playerPanel = document.getElementById('player-panel');
+        const playerPanelToggle = document.getElementById('player-panel-toggle');
         const progressBar = document.getElementById('progress-bar');
         const progress = document.getElementById('progress');
         const timeDisplay = document.getElementById('time-display');
@@ -129,6 +134,12 @@
         let wasPlayingBeforeDrag = false;
         let pendingSeekTime = null;
 
+        const DEFAULT_PLAYBACK_MODE = 'continuous';
+        const LESSON_LOOP_MODE = 'lesson-loop';
+        const LESSON_LOOP_DELAY_MS = 1200;
+        const PLAYBACK_MODES = [DEFAULT_PLAYBACK_MODE, LESSON_LOOP_MODE, 'single-play', 'single-loop', 'ab-loop'];
+        let lessonLoopTimer = null;
+
         /** 数据结构 */
         const state = {
             data: [],          // [{en, cn, start, end}]
@@ -137,7 +148,7 @@
             title: fallbackTitle,
             segmentEnd: 0,
             activeIdx: -1,
-            playbackMode: 'single-play', // 'single-play', 'single-loop', 'continuous', 'ab-loop'
+            playbackMode: DEFAULT_PLAYBACK_MODE,
             dictation: false,
             abLoop: { a: null, b: null },
             hasTranslation: false
@@ -271,7 +282,7 @@
             offsetX = Math.min(Math.max(offsetX, 0), width);
             const ratio = offsetX / width;
             const targetTime = ratio * duration;
-            progress.style.width = `${ratio * 100}%`;
+            progress.style.transform = `scaleX(${ratio})`;
             timeDisplay.textContent = `${formatTime(targetTime)} / ${formatTime(duration)}`;
             return targetTime;
         }
@@ -685,6 +696,7 @@
         const SEEK_DEBOUNCE_MS = 300; // 防抖间隔：300ms内的重复seek会被忽略（避免服务器过载）
         
         function playSegment(start, end) {
+            cancelLessonLoopRestart();
             if (!audioReady && !audio.error) {
                 console.warn('[PLAY] Audio not marked ready yet, attempting playback anyway');
                 if (audio.networkState === audio.NETWORK_IDLE || audio.readyState === 0) {
@@ -880,30 +892,51 @@
         /** ------------------------------------------------- 
          *  Custom Player Logic
          * ------------------------------------------------- */
-        playPauseBtn.addEventListener('click', () => {
-            if (audio.paused) {
-                if (state.activeIdx !== -1) {
-                    // If there's an active sentence, play from its start
-                    const { start, end } = state.data[state.activeIdx];
-                    playSegment(start, end);
-                } else {
-                    // If no active sentence, play from the beginning of the first sentence
-                    const { start, end } = state.data[0];
-                    playSegment(start, end);
-                }
-            } else {
+        function updatePlayPauseButton() {
+            const playing = !audio.paused || lessonLoopTimer !== null;
+            playPauseBtn.classList.toggle('play', !playing);
+            playPauseBtn.classList.toggle('pause', playing);
+            playPauseBtn.setAttribute('aria-label', playing ? '暂停' : '播放');
+        }
+
+        function cancelLessonLoopRestart() {
+            if (lessonLoopTimer === null) return false;
+            clearTimeout(lessonLoopTimer);
+            lessonLoopTimer = null;
+            updatePlayPauseButton();
+            return true;
+        }
+
+        function togglePlayback() {
+            if (cancelLessonLoopRestart()) return;
+            if (!audio.paused) {
                 audio.pause();
+                return;
             }
-        });
 
-        audio.addEventListener('play', () => {
-            playPauseBtn.classList.remove('play');
-            playPauseBtn.classList.add('pause');
-        });
+            if (state.playbackMode === LESSON_LOOP_MODE && (audio.ended || state.activeIdx === -1)) {
+                playSegment(0, 0);
+                return;
+            }
+            const sentence = state.data[Math.max(state.activeIdx, 0)];
+            if (sentence) playSegment(sentence.start, sentence.end);
+        }
 
-        audio.addEventListener('pause', () => {
-            playPauseBtn.classList.remove('pause');
-            playPauseBtn.classList.add('play');
+        playPauseBtn.addEventListener('click', togglePlayback);
+        audio.addEventListener('play', updatePlayPauseButton);
+        audio.addEventListener('pause', updatePlayPauseButton);
+        audio.addEventListener('error', cancelLessonLoopRestart);
+        window.addEventListener('pagehide', cancelLessonLoopRestart);
+
+        audio.addEventListener('ended', () => {
+            if (state.playbackMode !== LESSON_LOOP_MODE || !audio.ended || isDraggingProgress || lessonLoopTimer !== null) return;
+
+            lessonLoopTimer = setTimeout(() => {
+                lessonLoopTimer = null;
+                updatePlayPauseButton();
+                playSegment(0, 0);
+            }, LESSON_LOOP_DELAY_MS);
+            updatePlayPauseButton();
         });
 
         audio.addEventListener('loadedmetadata', () => {
@@ -926,6 +959,7 @@
             }
             
             const targetTime = (clickX / width) * duration;
+            cancelLessonLoopRestart();
             // Clear segmentEnd to prevent immediate loop back
             state.segmentEnd = 0;
             audio.currentTime = targetTime;
@@ -945,6 +979,7 @@
             if (targetTime === null) {
                 return;
             }
+            cancelLessonLoopRestart();
             isDraggingProgress = true;
             wasPlayingBeforeDrag = !audio.paused;
             if (wasPlayingBeforeDrag) {
@@ -1064,30 +1099,16 @@
             if (e.target.tagName !== 'BUTTON') return;
 
             const mode = e.target.id.replace('mode-', '');
-            if (['single-play', 'single-loop', 'continuous', 'ab-loop'].includes(mode)) {
+            if (PLAYBACK_MODES.includes(mode)) {
+                if (lessonLoopTimer !== null && mode === LESSON_LOOP_MODE) return;
+                const wasWaitingForLoop = cancelLessonLoopRestart();
                 state.playbackMode = mode;
                 localStorage.setItem('playbackMode', mode);
 
-                // Update active button
-                for (const child of modesContainer.children) {
-                    child.classList.remove('active');
-                }
-                e.target.classList.add('active');
-
-                // Show/hide A-B buttons
-                if (mode === 'ab-loop') {
-                    setAButton.style.display = 'inline-block';
-                    setBButton.style.display = 'inline-block';
-                } else {
-                    setAButton.style.display = 'none';
-                    setBButton.style.display = 'none';
-                }
+                updatePlaybackModeControls();
 
                 // Handle dictation mode availability
-                if (mode === 'single-play') {
-                    dictationContainer.style.display = '';
-                } else {
-                    dictationContainer.style.display = 'none';
+                if (mode !== 'single-play') {
                     dictationModeCheckbox.checked = false;
                     state.dictation = false;
                     // If a sentence is active, re-highlight to remove dictation input
@@ -1096,7 +1117,12 @@
                     }
                 }
 
-                if (audio.paused) {
+                if (audio.paused && !wasWaitingForLoop) {
+                    if (mode === LESSON_LOOP_MODE) {
+                        togglePlayback();
+                        return;
+                    }
+                    if (!state.data.length) return;
                     if (state.activeIdx !== -1) {
                         // If there's an active sentence, play from its start
                         let nextIdx = state.activeIdx;
@@ -1253,7 +1279,7 @@
 
             // Update progress bar and time display (skip if dragging to avoid flickering)
             if (duration && !isDraggingProgress) {
-                progress.style.width = `${(cur / duration) * 100}%`;
+                progress.style.transform = `scaleX(${cur / duration})`;
                 timeDisplay.textContent = `${formatTime(cur)} / ${formatTime(duration)}`;
             }
 
@@ -1269,7 +1295,8 @@
             }
 
             // Sentence-based logic for other modes
-            if (state.segmentEnd && cur >= state.segmentEnd) {
+            const isLessonLoop = state.playbackMode === LESSON_LOOP_MODE;
+            if (!isLessonLoop && state.segmentEnd && cur >= state.segmentEnd) {
                 let shouldReturn = true;
                 switch (state.playbackMode) {
                     case 'single-play':
@@ -1304,7 +1331,7 @@
             if (idx !== -1) {
                 highlight(idx);
                 // Update segmentEnd for the current sentence if not already set
-                if (!state.segmentEnd && state.data[idx]) {
+                if (isLessonLoop || !state.segmentEnd) {
                     state.segmentEnd = state.data[idx].end;
                 }
             } else {
@@ -1313,24 +1340,24 @@
             }
         });
 
+        function updatePlaybackModeControls() {
+            for (const button of modeButtons) {
+                const selected = button.id === `mode-${state.playbackMode}`;
+                button.classList.toggle('active', selected);
+                button.setAttribute('aria-pressed', String(selected));
+            }
+            abLoopControls.hidden = state.playbackMode !== 'ab-loop';
+            dictationContainer.hidden = state.playbackMode !== 'single-play';
+        }
+
         function loadSettings() {
-            const savedMode = localStorage.getItem('playbackMode') || 'single-play';
-            const savedSpeed = localStorage.getItem('playbackSpeed') || '1x';
+            const storedMode = localStorage.getItem('playbackMode');
+            const savedMode = PLAYBACK_MODES.includes(storedMode) ? storedMode : DEFAULT_PLAYBACK_MODE;
+            const savedSpeed = localStorage.getItem('playbackSpeed') || '1.2x';
 
             // Apply mode
             state.playbackMode = savedMode;
-            document.getElementById(`mode-${savedMode}`).classList.add('active');
-            if (savedMode === 'ab-loop') {
-                setAButton.style.display = 'inline-block';
-                setBButton.style.display = 'inline-block';
-            }
-
-            // Handle dictation mode availability on load
-            if (savedMode === 'single-play') {
-                dictationContainer.style.display = '';
-            } else {
-                dictationContainer.style.display = 'none';
-            }
+            updatePlaybackModeControls();
 
             // Apply speed
             const savedButton = document.getElementById(`speed-${savedSpeed}`);
@@ -1394,17 +1421,7 @@
                 case ' ':
                     // Space: Play/Pause
                     e.preventDefault();
-                    if (audio.paused) {
-                        if (state.activeIdx !== -1) {
-                            const { start, end } = state.data[state.activeIdx];
-                            playSegment(start, end);
-                        } else if (state.data.length > 0) {
-                            const { start, end } = state.data[0];
-                            playSegment(start, end);
-                        }
-                    } else {
-                        audio.pause();
-                    }
+                    togglePlayback();
                     break;
 
                 case 'ArrowUp':
@@ -1441,6 +1458,27 @@
 
         // 初始化
         loadSettings();
+        const PLAYER_PANEL_KEY = 'ncePlayerPanelCollapsed';
+        function setPlayerPanelCollapsed(collapsed) {
+            const label = collapsed ? '展开播放器' : '收起播放器';
+            playerPanel.hidden = collapsed;
+            playerContainer.classList.toggle('is-collapsed', collapsed);
+            playerPanelToggle.setAttribute('aria-expanded', String(!collapsed));
+            playerPanelToggle.setAttribute('aria-label', label);
+            playerPanelToggle.title = label;
+        }
+        setPlayerPanelCollapsed(localStorage.getItem(PLAYER_PANEL_KEY) === 'true');
+        playerPanelToggle.addEventListener('click', () => {
+            const collapsed = !playerPanel.hidden;
+            setPlayerPanelCollapsed(collapsed);
+            localStorage.setItem(PLAYER_PANEL_KEY, String(collapsed));
+        });
+
+        const syncPlayerHeight = () => {
+            content.style.setProperty('--player-height', `${playerContainer.offsetHeight}px`);
+        };
+        syncPlayerHeight();
+        new ResizeObserver(syncPlayerHeight).observe(playerContainer);
         loadLrc().then(r => {
             // LRC loaded successfully
         });

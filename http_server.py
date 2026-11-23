@@ -5,6 +5,7 @@ import re
 
 # 设置端口号，默认 8082
 PORT = 8082
+HOST = os.environ.get('NCE_BIND_IP', '127.0.0.1')
 
 class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
@@ -125,7 +126,7 @@ try:
         # 增加请求队列大小
         request_queue_size = 10
     
-    with ThreadedTCPServer(("", PORT), Handler) as httpd:
+    with ThreadedTCPServer((HOST, PORT), Handler) as httpd:
         print(f"服务已启动（多线程模式），按 Ctrl+C 停止。")
         httpd.serve_forever()
 except KeyboardInterrupt:

@@ -1,8 +1,63 @@
 # 新概念英语（New Concept English）-全四册
-## 🔗https://nce.hoothin.com
+## [在线学习](https://nce.chenzhuo.space:2474)
 ### 在线课文点读
 
 在线课文朗读，单句点读，随时随地在线学习。
+
+## 本地运行
+
+Mac 本地直接使用项目自带的 Python 静态服务器，课程音频和字幕从当前目录读取。
+
+```bash
+python3 http_server.py
+```
+
+打开 `http://127.0.0.1:8082`。
+
+## iPhone 添加到主屏幕
+
+用 Safari 打开部署后的 HTTPS 首页，选择「分享 → 添加到主屏幕」。如果看到「作为网页 App 打开」，请保持开启。然后从主屏幕上的黄绿 NCE 图标进入，而不是从 Safari 或其他 App 的网页预览进入。正常的独立启动不会显示 Safari 的地址栏、分享和刷新工具栏；系统状态栏仍会显示。
+
+如果之前添加的是显示「新」字的旧图标，更新部署后可移除旧入口，再从 Safari 重新添加。独立启动不等于离线播放，课程仍需连接到服务。
+
+## Docker Hub 与 UGOS Pro 部署
+
+本项目的 Docker 镜像只包含网页程序和静态资源，不包含四册课程目录。课程目录通过 UGOS Pro Compose 项目目录只读挂载到容器，后续更新镜像时不需要重新上传课程文件。
+
+在 Mac 上登录 Docker Hub，并使用 `linux/amd64` 构建 DXP4800 Plus 可运行的镜像。已有镜像时，可直接部署或更新 Compose，不必重新构建。
+
+```bash
+docker login
+docker buildx build \
+  --platform linux/amd64 \
+  --tag docker.io/cwwen/nce-study:latest \
+  --push .
+```
+
+在 UGOS Pro 的「Docker → 项目 → Compose 配置」中使用 [compose.yaml](compose.yaml)。按实际位置检查四册课程目录；当前配置使用 `/volume3/docker/nce-study/` 下的 `NCE1` 至 `NCE4`。四个目录保持只读挂载。
+
+Compose 使用 `user: "0:0"`，并在启动时将 Nginx worker 保持为 root，解决 UGOS 课程目录 ACL 不允许容器内 UID `101` 读取的问题。只写 `user: "0:0"` 还不够，因为 Nginx 默认会把 worker 降回 UID `101`。更新已有项目时，保存 Compose 并重新部署以重建容器，只点击「启动」不会应用新配置。
+
+部署完成后，局域网访问 `http://NAS_IP:15626`，打开第一册第一课验证字幕和音频。如果 NAS 的 `15626` 端口被占用，只修改端口映射左侧。
+
+### 课名正常，但没有字幕和音频
+
+打开第一册第一课后，在「Docker → 项目 → nce-study → 日志」中查看 `Excuse Me` 对应的请求。课名来自镜像内的 `static/data.json`，能看到课名不代表挂载的课程文件可读。
+
+- 如果仍然有 `(13: Permission denied)`，先确认 Compose 配置已保存并完成重新部署，且容器详情中的启动配置包含 `user: "0:0"` 和 `sed -i` 命令。不要只点击「启动」。
+- 如果日志有 `(2: No such file or directory)` 或返回 `404`，在 UGOS 文件管理器核对挂载源路径和文件名。第一课的 `001&002－Excuse Me.lrc` 和 `001&002－Excuse Me.mp3` 应直接位于 `NCE1` 内，不应多套一层目录。
+- 如果刷课文页时容器没有收到这两个请求，先用 NAS 局域网地址直连对照，再检查反代规则。
+
+如果不希望容器以 root 运行，也可以改用 NAS ACL 方案。NAS 提供 `setfacl` 时，在 NAS 的 SSH 终端执行以下命令（挂载位置不同时先改路径）。这只给 UID `101` 增加课程目录的进入权限，以及音频和字幕的读取权限：
+
+```sh
+cd /volume3/docker/nce-study &&
+  sudo find NCE1 NCE2 NCE3 NCE4 -type d -exec setfacl -m u:101:--x {} + &&
+  sudo find NCE1 NCE2 NCE3 NCE4 -type f \( -name '*.mp3' -o -name '*.lrc' \) \
+    -exec setfacl -m u:101:r-- {} +
+```
+
+执行成功后直接刷新第一课，不需要重启容器。若 `setfacl` 报错，先检查 NAS 的文件系统或共享文件夹 ACL 设置，不要放宽整个 Docker 共享目录的权限。
 
 ---
 
@@ -113,16 +168,10 @@
 如果你想使用本地的 MP3 和 LRC 文件创建自定义课程，可以使用内置的本地 HTTP 服务器。
 
 ### 快速开始
-+ 下载 [http_server.py](http_server.py) 与 [run_server.bat](run_server.bat)
+将你的 MP3 和 LRC 文件放在项目目录下或任意子文件夹，然后运行：
 
-#### Windows 用户
-1. 将你的 MP3 和 LRC 文件放在项目目录下（或任意子文件夹）
-2. 双击运行 `run_server.bat`
-3. 服务器将在 `http://localhost:8082` 启动
-
-#### 其他系统用户
 ```bash
-python http_server.py
+python3 http_server.py
 ```
 
 ### 使用说明
@@ -130,7 +179,7 @@ python http_server.py
 1. **启动服务器**后，你会看到如下提示：
    ```
    正在启动服务器...
-   根目录: D:\Workspace\NCE
+   根目录: /path/to/NCE
    地  址: http://localhost:8082
    ```
 

@@ -1,40 +1,40 @@
 {
-  "theme_color": "#000000",
-  "background_color": "#000000",
+  "theme_color": "#121212",
+  "background_color": "#121212",
   "display": "standalone",
-  "scope": "/",
-  "start_url": "/",
+  "scope": "../",
+  "start_url": "../",
   "name": "新概念英语点读",
   "short_name": "新概念",
   "description": "新概念英语在线点读平台，涵盖四册课文、逐句点读与听力播放、听写训练、播放历史和自定义课程管理，助力系统化英语学习。",
   "icons": [
     {
-      "src": "/images/icon-32.png",
+      "src": "../images/icon-32.png",
       "sizes": "32x32",
       "type": "image/png"
     },
     {
-      "src": "/images/icon-64.png",
+      "src": "../images/icon-64.png",
       "sizes": "64x64",
       "type": "image/png"
     },
     {
-      "src": "/images/icon-128.png",
+      "src": "../images/icon-128.png",
       "sizes": "128x128",
       "type": "image/png"
     },
     {
-      "src": "/images/icon-192.png",
+      "src": "../images/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/images/icon-256.png",
+      "src": "../images/icon-256.png",
       "sizes": "256x256",
       "type": "image/png"
     },
     {
-      "src": "/images/icon-512.png",
+      "src": "../images/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

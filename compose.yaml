@@ -1,0 +1,19 @@
+services:
+  nce-study:
+    image: cwwen/nce-study:latest
+    container_name: nce-study
+    restart: unless-stopped
+    user: "0:0"
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        sed -i 's/^user  nginx;/user root;/' /etc/nginx/nginx.conf
+        exec nginx -g 'daemon off;'
+    ports:
+      - "15626:80"
+    volumes:
+      - /volume3/docker/nce-study/NCE1:/usr/share/nginx/html/NCE1:ro
+      - /volume3/docker/nce-study/NCE2:/usr/share/nginx/html/NCE2:ro
+      - /volume3/docker/nce-study/NCE3:/usr/share/nginx/html/NCE3:ro
+      - /volume3/docker/nce-study/NCE4:/usr/share/nginx/html/NCE4:ro
